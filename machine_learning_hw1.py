@@ -43,7 +43,9 @@ def read_TFR(data, fea):
 	features = tf.parse_single_example(serialized_example, features=feature)
 	image = tf.decode_raw(features[ fea + '/image'], tf.uint8)
 	label = tf.cast(features[ fea + '/label'], tf.int64)
-	image = tf.reshape(image, [128,128,1])
+	#image = tf.reshape(image, [128,128,1])
+	image = tf.reshape(image, [128*128])
+	label = tf.reshape(label, [1])
 	images, labels = tf.train.shuffle_batch([image, label], batch_size=2, capacity=30, num_threads=1, min_after_dequeue=10)
 	with tf.Session() as sess:
 		init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
@@ -53,6 +55,7 @@ def read_TFR(data, fea):
 		try:
 			while not coord.should_stop():
 				img, lab = sess.run([images, labels])
+				#print(lab)
 		except tf.errors.OutOfRangeError:
 			print("Done training")
 		finally:
@@ -96,9 +99,10 @@ if __name__ == '__main__':
 	val_img, val_label = read_TFR("validation", "val")
 
 	xs = tf.placeholder(tf.float32, [None, 16384]) # 128x128
-	ys = tf.placeholder(tf.float32, [None, 10])
+	ys = tf.placeholder(tf.float32, [None, 1])
 	keep_prob = tf.placeholder(tf.float32)
 	x_image = tf.reshape(xs, [-1, 128, 128, 1])
+
 	W_conv1 = weight_variable([5,5, 1,32]) # patch 5x5, in size 1, out size 32
 	b_conv1 = bias_variable([32])
 	h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1) 
@@ -106,13 +110,13 @@ if __name__ == '__main__':
 	
 	W_conv2 = weight_variable([5,5, 32, 64]) # patch 5x5, in size 32, out size 64
 	b_conv2 = bias_variable([64])
-	h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2) # output size 14x14x64
+	h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
 	h_pool2 = max_pool_2x2(h_conv2)
 
-	W_fc1 = weight_variable([7*7*64, 1024])
+	W_fc1 = weight_variable([32*32*64, 1024])
 	b_fc1 = bias_variable([1024])
 
-	h_pool2_flat = tf.reshape(h_pool2, [-1, 7*7*64])
+	h_pool2_flat = tf.reshape(h_pool2, [-1, 32*32*64])
 	h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
 	h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
@@ -122,7 +126,13 @@ if __name__ == '__main__':
 
 	cross_entropy = tf.reduce_mean(-tf.reduce_sum(ys * tf.log(prediction),reduction_indices=[1]))# loss
 	train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
-'''
-	sess = tf.Session()
-	sess.run(tf.initialize_all_variables())
+
+	with tf.Session() as sess:
+		sess.run(tf.initialize_all_variables())
+		for i in range(1000):
+			batch_xs, batch_ys = train_img, train_label
+			sess.run(train_step, feed_dict={xs: batch_xs, ys: batch_ys, keep_prob: 0.5})
+			print(i)
+		saver = tf.train.Saver()
+		saver.save(sess, "./ckpt/model.ckpt")
 
