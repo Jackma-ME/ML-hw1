@@ -52,13 +52,13 @@ def read_TFR(data, fea):
 	return images, labels
 
 #------------------------------------------------------
-def weight_variable(shape):
+def weight_variable(shape, name):
 	initial = tf.truncated_normal(shape, stddev=0.1)
-	return tf.Variable(initial)
+	return tf.Variable(initial, name=name)
 
-def bias_variable(shape):
+def bias_variable(shape, name):
 	initial = tf.constant(0.1, shape=shape)
-	return tf.Variable(initial)
+	return tf.Variable(initial, name)
 
 def conv2d(x, W):
 	# stride [1, x_movement, y_movement, 1]
@@ -72,25 +72,25 @@ def max_pool_2x2(x):
 def BuildNetWork(xs, ys, keep_prob):
 	x_image = tf.reshape(xs, [-1, 128, 128, 1])
 	
-	W_conv1 = weight_variable([5,5, 1,32]) # patch 5x5, in size 1, out size 32
-	b_conv1 = bias_variable([32])
+	W_conv1 = weight_variable([5,5, 1,32], 'w_conv1') # patch 5x5, in size 1, out size 32
+	b_conv1 = bias_variable([32], 'b_conv1')
 	h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1) 
 	h_pool1 = max_pool_2x2(h_conv1)
 
-	W_conv2 = weight_variable([5,5, 32, 64]) # patch 5x5, in size 32, out size 64
-	b_conv2 = bias_variable([64])
+	W_conv2 = weight_variable([5,5, 32, 64], 'w_cov2') # patch 5x5, in size 32, out size 64
+	b_conv2 = bias_variable([64], 'b_cov2')
 	h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
 	h_pool2 = max_pool_2x2(h_conv2)
 
-	W_fc1 = weight_variable([32*32*64, 1024])
-	b_fc1 = bias_variable([1024])
+	W_fc1 = weight_variable([32*32*64, 1024], 'w_fc1')
+	b_fc1 = bias_variable([1024], 'b_fc1')
 
 	h_pool2_flat = tf.reshape(h_pool2, [-1, 32*32*64])
 	h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
 	h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
-	W_fc2 = weight_variable([1024, 10])
-	b_fc2 = bias_variable([10])
+	W_fc2 = weight_variable([1024, 10], 'w_fc2')
+	b_fc2 = bias_variable([10], 'b_fc2')
 	
 	prediction = tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
 
@@ -139,7 +139,7 @@ def test(data_dir):
 	keep_prob = tf.placeholder(tf.float32)
 
 	prediction, train_step = BuildNetWork(xs, ys, keep_prob)
-	i = 0
+	k = 0
 	with tf.Session() as sess:
 		saver = tf.train.Saver()
 		saver.restore(sess, "./ckpt/model.ckpt")
@@ -152,14 +152,14 @@ def test(data_dir):
 				img, lab = sess.run([val_img, val_label])
 				batch_xs, batch_ys = img, lab
 				pre = sess.run(prediction, feed_dict={xs: batch_xs, keep_prob: 1})
-				i = i+1
+				k = k+1
 				for i in range(2):
 					for j in range(10):
 						if pre[i][j] == 1:
 							pre_list.append(j)
 						if lab[i][j] == 1:
 							la_list.append(j)
-				#print(i, batch_ys, pre)
+				print("i=",k, " lab= ", batch_ys, "pre= ", pre)
 				
 		except tf.errors.OutOfRangeError:
 			print("Done validation")
