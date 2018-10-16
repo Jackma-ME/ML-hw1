@@ -5,17 +5,19 @@ import os
 #----------------------------------------
 def _store_image(img_path):
 	num_list = ["001", "002", "003", "004", "005", "006", "007", "008", "009", "010"]
-	label_list = []
+	label_list = []	
 	img_list = []
 	for num in range(10):
 		for dpath, dname, fname in os.walk(img_path + "/Sample" + num_list[num]):
 			for i in fname:
 				img_list.append(os.path.join(dpath,i))
-				label_list.append(num)
+				lab_list = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+				lab_list[num] = 1
+				label_list.append(lab_list)
 	return img_list, label_list
 
 def _int64_feature(data):
-	return tf.train.Feature(int64_list = tf.train.Int64List(value=[data]))
+	return tf.train.Feature(int64_list = tf.train.Int64List(value=data))
 
 def _bytes_feature(data):
 	return tf.train.Feature(bytes_list = tf.train.BytesList(value=[data]))
@@ -36,7 +38,7 @@ def write_TFR(data, fea):
 #---------------------------------------------------------
 def read_TFR(data, fea):
 	data_path = 'TFRecords/' + data + '.tfrecords'
-	feature = {fea + '/image': tf.FixedLenFeature([], tf.string), fea + '/label': tf.FixedLenFeature([], tf.int64)}
+	feature = {fea + '/image': tf.FixedLenFeature([], tf.string), fea + '/label': tf.FixedLenFeature([10], tf.int64)}
 	filename_queue = tf.train.string_input_producer([data_path], num_epochs=1)
 	reader = tf.TFRecordReader()
 	_, serialized_example = reader.read(filename_queue)
@@ -45,7 +47,7 @@ def read_TFR(data, fea):
 	label = tf.cast(features[ fea + '/label'], tf.int64)
 	#image = tf.reshape(image, [128,128,1])
 	image = tf.reshape(image, [128*128])
-	label = tf.reshape(label, [1])
+	#label = tf.reshape(label, [10])
 	images, labels = tf.train.shuffle_batch([image, label], batch_size=2, capacity=30, num_threads=1, min_after_dequeue=10)
 	return images, labels
 
@@ -101,7 +103,7 @@ def train(data_dir):
     # the following code is just a placeholder
 	train_img, train_label = read_TFR(data_dir, "train")
 	xs = tf.placeholder(tf.float32, [None, 16384]) # 128x128
-	ys = tf.placeholder(tf.float32, [None, 1])
+	ys = tf.placeholder(tf.float32, [None, 10])
 	keep_prob = tf.placeholder(tf.float32)
 	prediction, train_step = BuildNetWork(xs, ys, keep_prob)
 	i = 0
@@ -131,7 +133,7 @@ def test(data_dir):
     # the following code is just a placeholder
 	val_img, val_label = read_TFR(data_dir, "val")
 	xs = tf.placeholder(tf.float32, [None, 16384]) # 128x128
-	ys = tf.placeholder(tf.float32, [None, 1])
+	ys = tf.placeholder(tf.float32, [None, 10])
 	keep_prob = tf.placeholder(tf.float32)
 
 	prediction, train_step = BuildNetWork(xs, ys, keep_prob)
@@ -141,15 +143,25 @@ def test(data_dir):
 		saver.restore(sess, "./ckpt/model.ckpt")
 		init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
 		sess.run(init_op)
-		#print(2222222222222222222222222)
-		for i in range(1000):
-			#print(333333333333333333333333333)
-			img, lab = sess.run([val_img, val_label])
-			#print(44444444444444444444)
-			batch_xs, batch_ys = img, lab
-			sess.run(prediction, feed_dict={xs: batch_xs})
-			print(i,val_label)
-    #return [1,3,4,5], [1,4,3,5]
+		coord = tf.train.Coordinator()
+		threads = tf.train.start_queue_runners(coord=coord)
+		try:
+			while not coord.should_stop():
+				img, lab = sess.run([val_img, val_label])
+				batch_xs, batch_ys = img, lab
+				pre = sess.run(prediction, feed_dict={xs: batch_xs, keep_prob: 1})
+				correct_prediction = tf.equal(tf.argmax(pre,1), tf.argmax(lab,1))
+				accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+				result = sess.run(accuracy, feed_dict={xs: batch_xs, ys: batch_ys, keep_prob: 1})
+				print(i, batch_ys, pre, result)
+				i = i+1
+		except tf.errors.OutOfRangeError:
+			print("Done validation")
+		finally:
+			coord.request_stop()
+			coord.join(threads)
+
+    #return [1,3,4,5], [1,4,3,5]'''
 #---------------------------------------------------------------------------------
 if __name__ == '__main__':
 	print("test")
