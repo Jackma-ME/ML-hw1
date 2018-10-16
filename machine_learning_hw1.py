@@ -48,6 +48,7 @@ def read_TFR(data, fea):
 	#image = tf.reshape(image, [128,128,1])
 	image = tf.reshape(image, [128*128])
 	#label = tf.reshape(label, [10])
+	image = tf.cast(image, tf.float32)
 	images, labels = tf.train.shuffle_batch([image, label], batch_size=2, capacity=30, num_threads=1, min_after_dequeue=10)
 	return images, labels
 
@@ -77,8 +78,8 @@ def BuildNetWork(xs, ys, keep_prob):
 	h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1) 
 	h_pool1 = max_pool_2x2(h_conv1)
 
-	W_conv2 = weight_variable([5,5, 32, 64], 'w_cov2') # patch 5x5, in size 32, out size 64
-	b_conv2 = bias_variable([64], 'b_cov2')
+	W_conv2 = weight_variable([5,5, 32, 64], 'w_conv2') # patch 5x5, in size 32, out size 64
+	b_conv2 = bias_variable([64], 'b_conv2')
 	h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
 	h_pool2 = max_pool_2x2(h_conv2)
 
@@ -141,10 +142,10 @@ def test(data_dir):
 	prediction, train_step = BuildNetWork(xs, ys, keep_prob)
 	k = 0
 	with tf.Session() as sess:
-		saver = tf.train.Saver()
-		saver.restore(sess, "./ckpt/model.ckpt")
 		init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
 		sess.run(init_op)
+		saver = tf.train.Saver()
+		saver.restore(sess, "./ckpt/model.ckpt")
 		coord = tf.train.Coordinator()
 		threads = tf.train.start_queue_runners(coord=coord)
 		try:
@@ -173,6 +174,6 @@ if __name__ == '__main__':
 	print("test")
 	write_TFR("training", "train")
 	write_TFR("validation", "val")
-	train("training")
+	#train("training")
 	test("validation")
 
