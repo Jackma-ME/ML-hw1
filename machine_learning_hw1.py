@@ -131,6 +131,8 @@ def train(data_dir):
 def test(data_dir):
     # make your model give prediction for images from data_dir
     # the following code is just a placeholder
+	pre_list = []
+	la_list = []
 	val_img, val_label = read_TFR(data_dir, "val")
 	xs = tf.placeholder(tf.float32, [None, 16384]) # 128x128
 	ys = tf.placeholder(tf.float32, [None, 10])
@@ -150,23 +152,27 @@ def test(data_dir):
 				img, lab = sess.run([val_img, val_label])
 				batch_xs, batch_ys = img, lab
 				pre = sess.run(prediction, feed_dict={xs: batch_xs, keep_prob: 1})
-				correct_prediction = tf.equal(tf.argmax(pre,1), tf.argmax(lab,1))
-				accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-				result = sess.run(accuracy, feed_dict={xs: batch_xs, ys: batch_ys, keep_prob: 1})
-				print(i, batch_ys, pre, result)
 				i = i+1
+				for i in range(2):
+					for j in range(10):
+						if pre[i][j] == 1:
+							pre_list.append(j)
+						if lab[i][j] == 1:
+							la_list.append(j)
+				#print(i, batch_ys, pre)
+				
 		except tf.errors.OutOfRangeError:
 			print("Done validation")
 		finally:
 			coord.request_stop()
 			coord.join(threads)
-
-    #return [1,3,4,5], [1,4,3,5]'''
+	print(len(pre_list), len(la_list))
+	return pre_list, la_list
 #---------------------------------------------------------------------------------
 if __name__ == '__main__':
 	print("test")
 	write_TFR("training", "train")
 	write_TFR("validation", "val")
-	#train("training")
+	train("training")
 	test("validation")
 
