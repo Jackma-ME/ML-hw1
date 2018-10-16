@@ -54,7 +54,7 @@ def read_TFR(data, fea):
 
 #------------------------------------------------------
 def weight_variable(shape, name):
-	initial = tf.truncated_normal(shape, stddev=0.1)
+	initial = tf.truncated_normal(shape, mean=0 ,stddev=0.01)
 	return tf.Variable(initial, name=name)
 
 def bias_variable(shape, name):
@@ -96,7 +96,7 @@ def BuildNetWork(xs, ys, keep_prob):
 	prediction = tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
 
 	cross_entropy = tf.reduce_mean(-tf.reduce_sum(ys * tf.log(prediction),reduction_indices=[1]))# loss
-	train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
+	train_step = tf.train.AdamOptimizer(1e-5).minimize(cross_entropy)
 	return prediction, train_step
 #-------------------------------------------------------
 def train(data_dir):
@@ -118,6 +118,7 @@ def train(data_dir):
 			while not coord.should_stop():
 				img, lab = sess.run([train_img, train_label])
 				batch_xs, batch_ys = img, lab
+				batch_xs = batch_xs/255
 				sess.run(train_step, feed_dict={xs: batch_xs, ys: batch_ys, keep_prob: 0.5})
 				print(i,lab)
 				i = i+1
@@ -152,15 +153,16 @@ def test(data_dir):
 			while not coord.should_stop():
 				img, lab = sess.run([val_img, val_label])
 				batch_xs, batch_ys = img, lab
+				batch_xs = batch_xs/255
 				pre = sess.run(prediction, feed_dict={xs: batch_xs, keep_prob: 1})
 				k = k+1
 				for i in range(2):
+					pre_max = max(pre[i])
+					loc_max = np.argmax(pre[i])
 					for j in range(10):
-						if pre[i][j] == 1:
-							pre_list.append(j)
 						if lab[i][j] == 1:
 							la_list.append(j)
-				print("i=",k, " lab= ", batch_ys, "pre= ", pre)
+				print("i=",k, " lab= ", batch_ys, "pre= ", pre, "max= ", pre_max, "lo= ", loc_max)
 				
 		except tf.errors.OutOfRangeError:
 			print("Done validation")
@@ -172,8 +174,11 @@ def test(data_dir):
 #---------------------------------------------------------------------------------
 if __name__ == '__main__':
 	print("test")
+	tf.reset_default_graph()
 	write_TFR("training", "train")
 	write_TFR("validation", "val")
 	#train("training")
+	#tf.reset_default_graph()
 	test("validation")
+	#tf.reset_default_graph()
 
