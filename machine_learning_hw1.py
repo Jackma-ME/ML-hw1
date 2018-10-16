@@ -48,19 +48,7 @@ def read_TFR(data, fea):
 	label = tf.reshape(label, [1])
 	images, labels = tf.train.shuffle_batch([image, label], batch_size=2, capacity=30, num_threads=1, min_after_dequeue=10)
 	return images, labels
-'''with tf.Session() as sess:
-		init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
-		sess.run(init_op)
-		coord = tf.train.Coordinator()
-		threads = tf.train.start_queue_runners(coord=coord)
-		try:
-			while not coord.should_stop():
-				img, lab = sess.run([images, labels])
-		except tf.errors.OutOfRangeError:
-			print("Done training")
-		finally:
-			coord.request_stop()
-			coord.join(threads)'''
+
 #------------------------------------------------------
 def weight_variable(shape):
 	initial = tf.truncated_normal(shape, stddev=0.1)
@@ -153,11 +141,11 @@ def test(data_dir):
 		saver.restore(sess, "./ckpt/model.ckpt")
 		init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
 		sess.run(init_op)
-		print(2222222222222222222222222)
+		#print(2222222222222222222222222)
 		for i in range(1000):
-			print(333333333333333333333333333)
+			#print(333333333333333333333333333)
 			img, lab = sess.run([val_img, val_label])
-			print(44444444444444444444)
+			#print(44444444444444444444)
 			batch_xs, batch_ys = img, lab
 			sess.run(prediction, feed_dict={xs: batch_xs})
 			print(i,val_label)
@@ -169,187 +157,4 @@ if __name__ == '__main__':
 	write_TFR("validation", "val")
 	#train("training")
 	test("validation")
-
-
-	'''
-	train_img, train_label = read_TFR("training", "train")
-	val_img, val_label = read_TFR("validation", "val")
-	i = 0 
-#---------------------training------------------------------------------
-	xs = tf.placeholder(tf.float32, [None, 16384]) # 128x128
-	ys = tf.placeholder(tf.float32, [None, 1])
-	keep_prob = tf.placeholder(tf.float32)
-	prediction, train_step = BuildNetWork(xs, ys, keep_prob)
-
-	with tf.Session() as sess:
-		init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
-		sess.run(init_op)
-		coord = tf.train.Coordinator()
-		threads = tf.train.start_queue_runners(coord=coord)
-		try:
-			while not coord.should_stop():
-				img, lab = sess.run([train_img, train_label])
-				batch_xs, batch_ys = img, lab
-				sess.run(train_step, feed_dict={xs: batch_xs, ys: batch_ys, keep_prob: 0.5})
-				print(i,lab)
-				i = i+1
-		except tf.errors.OutOfRangeError:
-			print("Done training")
-		finally:
-			saver = tf.train.Saver()
-			saver.save(sess, "./ckpt/model.ckpt")
-			coord.request_stop()
-			coord.join(threads)
-
-	x_image = tf.reshape(xs, [-1, 128, 128, 1])
-
-	W_conv1 = weight_variable([5,5, 1,32]) # patch 5x5, in size 1, out size 32
-	b_conv1 = bias_variable([32])
-	h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1) 
-	h_pool1 = max_pool_2x2(h_conv1)
-	
-	W_conv2 = weight_variable([5,5, 32, 64]) # patch 5x5, in size 32, out size 64
-	b_conv2 = bias_variable([64])
-	h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
-	h_pool2 = max_pool_2x2(h_conv2)
-
-	W_fc1 = weight_variable([32*32*64, 1024])
-	b_fc1 = bias_variable([1024])
-
-	h_pool2_flat = tf.reshape(h_pool2, [-1, 32*32*64])
-	h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
-	h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
-
-	W_fc2 = weight_variable([1024, 10])
-	b_fc2 = bias_variable([10])
-	prediction = tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
-
-	cross_entropy = tf.reduce_mean(-tf.reduce_sum(ys * tf.log(prediction),reduction_indices=[1]))# loss
-	train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
-
-	
-	xs1 = tf.placeholder(tf.float32, [None, 16384]) # 128x128
-	print(1111111111111)
-	with tf.Session() as sess:
-		saver = tf.train.Saver()
-		saver.restore(sess, "./ckpt/model.ckpt")
-		#init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
-		#sess.run(init_op)
-		print(2222222222222222222222222)
-		for i in range(1000):
-			print(333333333333333333333333333)
-			img, lab = sess.run([val_img, val_label])
-			print(44444444444444444444)
-			batch_xs, batch_ys = img, lab
-			sess.run(prediction, feed_dict={xs1: batch_xs})
-			print(i,val_label)
-
-		coord = tf.train.Coordinator()
-		threads = tf.train.start_queue_runners(coord=coord)
-		try:
-			while not coord.should_stop():
-				img, lab = sess.run([val_img, val_label])
-				batch_xs, batch_ys = img, lab
-				print(sess.run(prediction, feed_dict={xs1: batch_xs}))
-		except tf.errors.OutOfRangeError:
-			print("Done validation")
-		finally:
-			coord.request_stop()
-			coord.join(threads)
-
-	with tf.Session() as sess:
-		init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
-		sess.run(init_op)
-		coord = tf.train.Coordinator()
-		threads = tf.train.start_queue_runners(coord=coord)
-		try:
-			while not coord.should_stop():
-				img, lab = sess.run([train_img, train_label])
-				batch_xs, batch_ys = img, lab
-				sess.run(train_step, feed_dict={xs: batch_xs, ys: batch_ys, keep_prob: 0.5})
-				print(i,lab)
-				i = i+1
-		except tf.errors.OutOfRangeError:
-			print("Done training")
-		finally:
-			saver = tf.train.Saver()
-			saver.save(sess, "./ckpt/model.ckpt")
-			coord.request_stop()
-			coord.join(threads)
-
-	
-	with tf.Session() as sess:
-		sess.run(tf.initialize_all_variables())
-		for i in range(1000):
-			train_img, train_label = read_TFR("training", "train")
-			batch_xs, batch_ys = train_img, train_label
-			sess.run(train_step, feed_dict={xs: batch_xs, ys: batch_ys, keep_prob: 0.5})
-			print(i,train_label)
-		saver = tf.train.Saver()
-		saver.save(sess, "./ckpt/model.ckpt")
-#--------------------------validation-----------------------------------------
-	w1 = tf.placeholder(tf.float32, [None, 16384])
-	w2 = tf.placeholder(tf.float32, [None, 1])		
-	with tf.Session() as sess:
-		saver = tf.train.Saver()
-		saver.restore(sess, "./ckpt/model.ckpt")
-		bat_xs, bat_ys = val_img, val_label
-
-#-----------------bulid network_________________________
-
-	xs = tf.placeholder(tf.float32, [None, 16384]) # 128x128
-
-	ys = tf.placeholder(tf.float32, [None, 1])
-
-	keep_prob = tf.placeholder(tf.float32)
-
-	x_image = tf.reshape(xs, [-1, 128, 128, 1])
-
-
-
-	W_conv1 = weight_variable([5,5, 1,32]) # patch 5x5, in size 1, out size 32
-
-	b_conv1 = bias_variable([32])
-
-	h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1) 
-
-	h_pool1 = max_pool_2x2(h_conv1)
-
-	
-
-	W_conv2 = weight_variable([5,5, 32, 64]) # patch 5x5, in size 32, out size 64
-
-	b_conv2 = bias_variable([64])
-
-	h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
-
-	h_pool2 = max_pool_2x2(h_conv2)
-
-
-
-	W_fc1 = weight_variable([32*32*64, 1024])
-
-	b_fc1 = bias_variable([1024])
-
-
-
-	h_pool2_flat = tf.reshape(h_pool2, [-1, 32*32*64])
-
-	h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
-
-	h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
-
-
-
-	W_fc2 = weight_variable([1024, 10])
-
-	b_fc2 = bias_variable([10])
-
-	prediction = tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
-
-
-
-	cross_entropy = tf.reduce_mean(-tf.reduce_sum(ys * tf.log(prediction),reduction_indices=[1]))# loss
-	train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)'''
-		
 
