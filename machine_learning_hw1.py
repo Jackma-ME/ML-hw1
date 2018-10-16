@@ -58,7 +58,7 @@ def weight_variable(shape, name):
 
 def bias_variable(shape, name):
 	initial = tf.constant(0.1, shape=shape)
-	return tf.Variable(initial, name)
+	return tf.Variable(initial, name=name)
 
 def conv2d(x, W):
 	# stride [1, x_movement, y_movement, 1]
