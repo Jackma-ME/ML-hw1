@@ -55,7 +55,6 @@ def read_TFR(data, fea):
 		try:
 			while not coord.should_stop():
 				img, lab = sess.run([images, labels])
-				#print(lab)
 		except tf.errors.OutOfRangeError:
 			print("Done training")
 		finally:
@@ -97,7 +96,7 @@ if __name__ == '__main__':
 	
 	train_img, train_label = read_TFR("training", "train")
 	val_img, val_label = read_TFR("validation", "val")
-
+#-----------------bulid network_________________________
 	xs = tf.placeholder(tf.float32, [None, 16384]) # 128x128
 	ys = tf.placeholder(tf.float32, [None, 1])
 	keep_prob = tf.placeholder(tf.float32)
@@ -126,7 +125,7 @@ if __name__ == '__main__':
 
 	cross_entropy = tf.reduce_mean(-tf.reduce_sum(ys * tf.log(prediction),reduction_indices=[1]))# loss
 	train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
-
+#---------------------training------------------------------------------
 	with tf.Session() as sess:
 		sess.run(tf.initialize_all_variables())
 		for i in range(1000):
@@ -135,4 +134,12 @@ if __name__ == '__main__':
 			print(i)
 		saver = tf.train.Saver()
 		saver.save(sess, "./ckpt/model.ckpt")
+#--------------------------validation-----------------------------------------
+	w1 = tf.placeholder(tf.float32, [None, 16384])
+	w2 = tf.placeholder(tf.float32, [None, 1])		
+	with tf.Session() as sess:
+		saver = tf.train.Saver()
+		saver.restore(sess, "./ckpt/model.ckpt")
+		bat_xs, bat_ys = val_img, val_label
+		
 
