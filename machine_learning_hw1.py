@@ -45,16 +45,15 @@ def read_TFR(data, fea):
 	features = tf.parse_single_example(serialized_example, features=feature)
 	image = tf.decode_raw(features[ fea + '/image'], tf.uint8)
 	label = tf.cast(features[ fea + '/label'], tf.int64)
-	#image = tf.reshape(image, [128,128,1])
 	image = tf.reshape(image, [128*128])
-	#label = tf.reshape(label, [10])
-	image = tf.cast(image, tf.float32)
-	images, labels = tf.train.shuffle_batch([image, label], batch_size=2, capacity=30, num_threads=1, min_after_dequeue=10)
+	#image = tf.cast(image, tf.float32)
+	images, labels = tf.train.shuffle_batch([image, label], batch_size=2, capacity=650, num_threads=1, min_after_dequeue=10)
 	return images, labels
 
 #------------------------------------------------------
 def weight_variable(shape, name):
-	initial = tf.truncated_normal(shape, mean=0 ,stddev=0.01)
+	initial = tf.truncated_normal(shape, mean= 0, stddev=0.01)
+	#initial = tf.constant([[2.0,1.0,0.0,-1.0,-2],[3,2,0,-2,-3],[4,3,0,-3,-4],[3,2,0,-2,-3],[2,1,0,-1,-2]], shape = shape)
 	return tf.Variable(initial, name=name)
 
 def bias_variable(shape, name):
@@ -73,12 +72,24 @@ def max_pool_2x2(x):
 def BuildNetWork(xs, ys, keep_prob):
 	x_image = tf.reshape(xs, [-1, 128, 128, 1])
 	
-	W_conv1 = weight_variable([5,5, 1,32], 'w_conv1') # patch 5x5, in size 1, out size 32
+	W_conv1 = weight_variable([5,5,1,32], 'w_conv1') # patch 5x5, in size 1, out size 32
 	b_conv1 = bias_variable([32], 'b_conv1')
 	h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1) 
 	h_pool1 = max_pool_2x2(h_conv1)
 
-	W_conv2 = weight_variable([5,5, 32, 64], 'w_conv2') # patch 5x5, in size 32, out size 64
+	W_fc1 = weight_variable([64*64*32, 100], 'w_fc1')
+	b_fc1 = bias_variable([100], 'b_fc1')
+
+	h_pool2_flat = tf.reshape(h_pool1, [-1, 64*64*32])
+	h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+	h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
+
+	W_fc2 = weight_variable([100, 10], 'w_fc2')
+	b_fc2 = bias_variable([10], 'b_fc2')
+
+	prediction = tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
+
+	'''W_conv2 = weight_variable([5,5, 32, 64], 'w_conv2') # patch 5x5, in size 32, out size 64
 	b_conv2 = bias_variable([64], 'b_conv2')
 	h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
 	h_pool2 = max_pool_2x2(h_conv2)
@@ -91,14 +102,18 @@ def BuildNetWork(xs, ys, keep_prob):
 	h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
 	W_fc2 = weight_variable([1024, 10], 'w_fc2')
-	b_fc2 = bias_variable([10], 'b_fc2')
-	
-	prediction = tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
+	b_fc2 = bias_variable([10], 'b_fc2')'''
 
 	cross_entropy = tf.reduce_mean(-tf.reduce_sum(ys * tf.log(prediction),reduction_indices=[1]))# loss
 	train_step = tf.train.AdamOptimizer(1e-5).minimize(cross_entropy)
 	return prediction, train_step
 #-------------------------------------------------------
+def layer(xs, ys,in_size,out):
+	weights = tf.Variable(tf.random_normal([in_size,out]))
+	bias = tf.Variable(tf.zeros([1,out])+0.1,)
+	w_b = tf.matmul(xs,weights)+bias
+	prediction = tf.nn.softmax(w_b)
+
 def train(data_dir):
     # train your model with images from data_dir
     # the following code is just a placeholder
@@ -108,7 +123,6 @@ def train(data_dir):
 	keep_prob = tf.placeholder(tf.float32)
 	prediction, train_step = BuildNetWork(xs, ys, keep_prob)
 	i = 0
-
 	with tf.Session() as sess:
 		init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
 		sess.run(init_op)
@@ -133,6 +147,7 @@ def train(data_dir):
 def test(data_dir):
     # make your model give prediction for images from data_dir
     # the following code is just a placeholder
+	tf.reset_default_graph()
 	pre_list = []
 	la_list = []
 	val_img, val_label = read_TFR(data_dir, "val")
@@ -157,13 +172,11 @@ def test(data_dir):
 				pre = sess.run(prediction, feed_dict={xs: batch_xs, keep_prob: 1})
 				k = k+1
 				for i in range(2):
-					pre_max = max(pre[i])
-					loc_max = np.argmax(pre[i])
-					for j in range(10):
-						if lab[i][j] == 1:
-							la_list.append(j)
-				print("i=",k, " lab= ", batch_ys, "pre= ", pre, "max= ", pre_max, "lo= ", loc_max)
-				
+					ploc_max = np.argmax(pre[i])
+					pre_list.append(ploc_max)
+					lloc_max = np.argmax(lab[i])
+					la_list.append(lloc_max)
+				print("i=",k, " lab= ", lloc_max, "pre= ", ploc_max, "pre= ", pre)
 		except tf.errors.OutOfRangeError:
 			print("Done validation")
 		finally:
@@ -177,8 +190,8 @@ if __name__ == '__main__':
 	tf.reset_default_graph()
 	write_TFR("training", "train")
 	write_TFR("validation", "val")
-	#train("training")
-	#tf.reset_default_graph()
+	train("training")
+	tf.reset_default_graph()
 	test("validation")
-	#tf.reset_default_graph()
+	tf.reset_default_graph()
 
