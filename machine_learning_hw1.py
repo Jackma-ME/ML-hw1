@@ -117,7 +117,7 @@ def BuildNetWork(xs, ys, keep_prob):
 
 def train(data_dir):
     # train your model with images from data_dir
-	train_img, train_label = read_TFR(data_dir, "train", 200) # each image trains 100 times
+	train_img, train_label = read_TFR(data_dir, "train", 200) # each image trains 200 times
 	xs = tf.placeholder(tf.float32, [None, 16384]) # 128x128
 	ys = tf.placeholder(tf.float32, [None, 10])    # 10 numbers
 	keep_prob = tf.placeholder(tf.float32)
